@@ -1,0 +1,5 @@
+{
+  "name": "Data Visualizer from Image",
+  "description": "An application to extract tabular data from images using AI and visualize it using interactive pie charts.",
+  "requestFramePermissions": []
+}
