@@ -58,7 +58,12 @@ const App: React.FC = () => {
       setError(null);
   }
 
-  const dataKeys = tableData ? Object.keys(tableData[0]) as Array<keyof HouseholdData> : [];
+  const dataKeys = tableData 
+    ? Array.from(tableData.reduce((acc, row) => {
+        Object.keys(row).forEach(key => acc.add(key as keyof HouseholdData));
+        return acc;
+      }, new Set<keyof HouseholdData>()))
+    : [];
 
   const formatHeader = (header: string) => {
     return header
