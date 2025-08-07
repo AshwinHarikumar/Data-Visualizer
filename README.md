@@ -2,7 +2,8 @@
 
 This is a web application that leverages Google's Gemini AI to extract structured data from a PDF document. The extracted data is then presented in an interactive dashboard with tables, pie charts, and bar charts for easy visualization and analysis.
 
-![Data Visualizer Screenshot](<placeholder_for_screenshot.png>)
+![Data Visualizer Screenshot](https://github.com/AshwinHarikumar/Data-Visualizer---Energy-Cell/raw/main/img.png)
+
 
 ## Features
 
