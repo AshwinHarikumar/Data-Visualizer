@@ -1,88 +1,87 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { UploadIcon } from './icons';
 
 interface InitialViewProps {
-  isGeminiLoading: boolean;
+  onProcessFile: (file: File) => void;
+  isLoading: boolean;
   error: string | null;
-  onProcessFromPdf: (file: File) => void;
 }
 
-const InitialView: React.FC<InitialViewProps> = ({ isGeminiLoading, error, onProcessFromPdf }) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+const LoadingSpinner = () => (
+    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+);
+  
+const InitialView: React.FC<InitialViewProps> = ({ 
+  onProcessFile, isLoading, error 
+}) => {
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setSelectedFile(file);
-    } else {
-      setSelectedFile(null);
-      if (file) {
-        alert('Please select a PDF file.');
-      }
-    }
-  };
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files.length > 0) {
+            setSelectedFile(event.target.files[0]);
+        }
+    };
+    
+    const handleProcessUpload = () => {
+        if (selectedFile) {
+            onProcessFile(selectedFile);
+        }
+    };
 
-  const handleProcessClick = () => {
-    if (selectedFile) {
-      onProcessFromPdf(selectedFile);
-    } else {
-      alert('Please select a PDF file to process.');
-    }
-  };
+    const handleBrowseClick = () => {
+        fileInputRef.current?.click();
+    };
 
-  return (
-    <div className="text-center max-w-lg">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-        Start by Uploading a PDF
-      </h2>
-      <p className="text-gray-600 dark:text-gray-400 mb-8">
-        Select a PDF file containing household survey data to begin visualization.
-      </p>
+    return (
+        <div className="text-center transition-opacity duration-500 ease-in-out opacity-100 w-full max-w-md">
+          <div className="flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-gray-700/50 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700/80">
+            <UploadIcon className="mx-auto h-16 w-16 text-gray-400" />
+            <h2 className="mt-6 text-2xl font-semibold text-gray-800 dark:text-white">Upload Your Document</h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-300">
+              Select a PDF file with tabular data for extraction and visualization.
+            </p>
+            
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="application/pdf"
+              className="hidden"
+              aria-label="File upload"
+              disabled={isLoading}
+            />
 
-      <div className="mb-6">
-        <label htmlFor="pdf-upload" className="w-full cursor-pointer bg-gray-100 dark:bg-gray-700/50 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 flex flex-col items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-          <UploadIcon className="w-12 h-12 text-gray-400 dark:text-gray-500 mb-4" />
-          <span className="text-lg font-semibold text-gray-700 dark:text-gray-300">
-            {selectedFile ? 'File selected' : 'Click to upload a file'}
-          </span>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {selectedFile ? selectedFile.name : 'PDF only'}
-          </span>
-        </label>
-        <input
-          id="pdf-upload"
-          type="file"
-          accept=".pdf,application/pdf"
-          onChange={handleFileChange}
-          className="hidden"
-        />
-      </div>
+            <div className="mt-8 w-full">
+                <button
+                  onClick={handleBrowseClick}
+                  disabled={isLoading}
+                  className="w-full inline-flex items-center justify-center px-6 py-3 border border-gray-300 dark:border-gray-600 text-base font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Browse File
+                </button>
 
-      <button
-        onClick={handleProcessClick}
-        disabled={isGeminiLoading || !selectedFile}
-        className="w-full inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400 disabled:cursor-not-allowed transition-all"
-      >
-        {isGeminiLoading ? (
-          <>
-            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Processing...
-          </>
-        ) : (
-          'Process PDF'
-        )}
-      </button>
+                {selectedFile && 
+                    <p className="mt-3 text-sm text-gray-500 dark:text-gray-400 truncate max-w-full px-2" title={selectedFile.name}>
+                        Selected: <strong>{selectedFile.name}</strong>
+                    </p>
+                }
 
-      {error && (
-        <div className="mt-4 text-red-500 bg-red-100 dark:bg-red-900/20 p-3 rounded-md">
-          <p><strong>Error:</strong> {error}</p>
+                <button
+                    onClick={handleProcessUpload}
+                    disabled={isLoading || !selectedFile}
+                    className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                    {isLoading ? <><LoadingSpinner/> Processing...</> : 'Process File & Visualize'}
+                </button>
+            </div>
+          </div>
+          {error && <p className="mt-6 text-red-500 font-medium">{error}</p>}
         </div>
-      )}
-    </div>
-  );
+      );
 };
 
 export default InitialView;

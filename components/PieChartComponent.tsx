@@ -1,11 +1,10 @@
 
 import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { HouseholdData } from '../types';
 
 interface PieChartComponentProps {
-  data: HouseholdData[];
-  category: keyof HouseholdData;
+  data: Record<string, any>[];
+  category: string;
 }
 
 const COLORS = [
@@ -38,6 +37,7 @@ const PieChartComponent: React.FC<PieChartComponentProps> = ({ data, category })
             cy="50%"
             labelLine={false}
             label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+              if (percent === 0) return null;
               const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
               const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
               const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));

@@ -1,5 +1,6 @@
 {
-  "name": "Data Visualizer from Image",
-  "description": "An application to extract tabular data from images using AI and visualize it using interactive pie charts.",
-  "requestFramePermissions": []
+  "name": "Dynamic PDF Data Visualizer",
+  "description": "An application that uses AI to dynamically extract tabular data from any user-uploaded PDF and generate interactive visualizations.",
+  "requestFramePermissions": [],
+  "prompt": ""
 }

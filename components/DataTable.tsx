@@ -1,8 +1,8 @@
+
 import React from 'react';
-import { HouseholdData } from '../types';
 
 interface DataTableProps {
-  data: HouseholdData[];
+  data: Record<string, any>[];
 }
 
 const DataTable: React.FC<DataTableProps> = ({ data }) => {
@@ -10,30 +10,12 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
     return <p className="text-center text-gray-500">No data available to display.</p>;
   }
 
-  // Get all unique keys from all rows to create a complete set of headers.
-  const headers = Array.from(data.reduce((acc, row) => {
-    Object.keys(row).forEach(key => acc.add(key));
-    return acc;
-  }, new Set<string>()));
+  const headers = Object.keys(data[0]);
   
   const formatHeader = (header: string) => {
     return header
       .replace(/([A-Z])/g, ' $1')
       .replace(/^./, (str) => str.toUpperCase());
-  };
-
-  const renderCellContent = (value: any) => {
-    if (value === null || typeof value === 'undefined') {
-      return <span className="text-gray-400 italic">N/A</span>;
-    }
-    if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
-    }
-    if (typeof value === 'object') {
-      // Pretty print object values for readability
-      return <pre className="text-xs whitespace-pre-wrap bg-gray-100 dark:bg-gray-700 p-2 rounded">{JSON.stringify(value, null, 2)}</pre>;
-    }
-    return String(value);
   };
 
   return (
@@ -52,8 +34,8 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
           {data.map((row, index) => (
             <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
               {headers.map((header) => (
-                <td key={`${index}-${header}`} className="px-6 py-4 align-top">
-                  {renderCellContent(row[header as keyof HouseholdData])}
+                <td key={`${index}-${header}`} className="px-6 py-4">
+                  {String(row[header])}
                 </td>
               ))}
             </tr>

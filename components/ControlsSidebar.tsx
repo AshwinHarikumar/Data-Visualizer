@@ -1,30 +1,26 @@
 import React from 'react';
-import { HouseholdData } from '../types';
-import { ChartPieIcon, TableIcon, BarChartIcon } from './icons';
+import { PieChartIcon, TableIcon, BarChartIcon } from './icons';
+import { ChartType } from '../App';
 
 type View = 'table' | 'chart';
-type ChartType = 'pie' | 'bar';
 
 interface ControlsSidebarProps {
   activeView: View;
   setActiveView: (view: View) => void;
   chartType: ChartType;
   setChartType: (type: ChartType) => void;
-  selectedCategory: keyof HouseholdData;
-  setSelectedCategory: (category: keyof HouseholdData) => void;
-  dataKeys: Array<keyof HouseholdData>;
+  selectedCategory: string;
+  setSelectedCategory: (category: string) => void;
+  availableKeys: string[];
   onReset: () => void;
 }
 
-const formatHeader = (header: string) => {
-    return header
-      .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, (str) => str.toUpperCase());
-};
+const formatCategoryName = (name: string) => {
+    return name.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+}
 
 const ControlsSidebar: React.FC<ControlsSidebarProps> = ({
-    activeView, setActiveView, chartType, setChartType,
-    selectedCategory, setSelectedCategory, dataKeys, onReset
+    activeView, setActiveView, chartType, setChartType, selectedCategory, setSelectedCategory, availableKeys, onReset
 }) => {
     return (
         <aside className="lg:w-72 bg-white/60 dark:bg-gray-800/60 backdrop-blur-md p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col">
@@ -43,7 +39,7 @@ const ControlsSidebar: React.FC<ControlsSidebarProps> = ({
                                 : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                         >
-                            <ChartPieIcon className="mr-2 h-5 w-5" />
+                            <PieChartIcon className="mr-2 h-5 w-5" />
                             Chart
                         </button>
                         <button
@@ -61,28 +57,27 @@ const ControlsSidebar: React.FC<ControlsSidebarProps> = ({
                 </div>
                 
                 {activeView === 'chart' && (
-                    <div className="space-y-6">
-                        {/* Chart Type Selector */}
-                        <div>
+                    <div className="space-y-4">
+                         <div>
                             <span className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">Chart Type</span>
                             <div className="flex items-center space-x-2">
                                 <button
                                     onClick={() => setChartType('pie')}
                                     className={`w-full flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                                         chartType === 'pie' 
-                                        ? 'bg-indigo-500 text-white shadow' 
-                                        : 'text-gray-600 dark:text-gray-300 bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                        ? 'bg-indigo-500 text-white shadow-sm' 
+                                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                     }`}
                                 >
-                                    <ChartPieIcon className="mr-2 h-5 w-5" />
+                                    <PieChartIcon className="mr-2 h-5 w-5" />
                                     Pie
                                 </button>
                                 <button
                                     onClick={() => setChartType('bar')}
                                     className={`w-full flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                                        chartType === 'bar' 
-                                        ? 'bg-indigo-500 text-white shadow' 
-                                        : 'text-gray-600 dark:text-gray-300 bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                        chartType === 'bar'
+                                        ? 'bg-indigo-500 text-white shadow-sm'
+                                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                     }`}
                                 >
                                     <BarChartIcon className="mr-2 h-5 w-5" />
@@ -90,8 +85,6 @@ const ControlsSidebar: React.FC<ControlsSidebarProps> = ({
                                 </button>
                             </div>
                         </div>
-
-                        {/* Category Selector */}
                         <div>
                             <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Chart Category
@@ -99,14 +92,17 @@ const ControlsSidebar: React.FC<ControlsSidebarProps> = ({
                             <select
                                 id="category-select"
                                 value={selectedCategory}
-                                onChange={(e) => setSelectedCategory(e.target.value as keyof HouseholdData)}
-                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm"
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                disabled={availableKeys.length === 0}
+                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm disabled:opacity-50"
                             >
-                                {dataKeys
-                                  .filter(key => typeof key === 'string' && !key.match(/Details|Appliance|Consumption|Distance|Count|Hours/i))
-                                  .map(key => (
-                                    <option key={key} value={key}>{formatHeader(key)}</option>
-                                ))}
+                                {availableKeys.length > 0 ? (
+                                    availableKeys.map(key => (
+                                        <option key={key} value={key}>{formatCategoryName(key)}</option>
+                                    ))
+                                ) : (
+                                    <option>No categories found</option>
+                                )}
                             </select>
                         </div>
                     </div>

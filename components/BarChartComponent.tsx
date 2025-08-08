@@ -1,10 +1,9 @@
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
-import { HouseholdData } from '../types';
 
 interface BarChartComponentProps {
-  data: HouseholdData[];
-  category: keyof HouseholdData;
+  data: any[];
+  category: string;
 }
 
 const COLORS = [
@@ -14,15 +13,16 @@ const COLORS = [
 
 const BarChartComponent: React.FC<BarChartComponentProps> = ({ data, category }) => {
   const chartData = useMemo(() => {
-    const counts = data.reduce((acc: { [key: string]: number }, item: HouseholdData) => {
+    const counts = data.reduce((acc, item) => {
       const value = String(item[category]);
       acc[value] = (acc[value] || 0) + 1;
       return acc;
-    }, {});
+    }, {} as { [key: string]: number });
 
+    // Sort alphabetically by category name for consistent display
     return Object.entries(counts)
-      .map(([name, value]) => ({ name, value: Number(value) }))
-      .sort((a, b) => b.value - a.value);
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [data, category]);
   
   if (chartData.length === 0) {
@@ -38,11 +38,11 @@ const BarChartComponent: React.FC<BarChartComponentProps> = ({ data, category })
             top: 5,
             right: 30,
             left: 20,
-            bottom: 5,
+            bottom: 80,
           }}
         >
           <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+          <XAxis dataKey="name" angle={-45} textAnchor="end" tick={{ fontSize: 12 }} interval={0} />
           <YAxis allowDecimals={false} />
           <Tooltip
             contentStyle={{ 
@@ -55,7 +55,7 @@ const BarChartComponent: React.FC<BarChartComponentProps> = ({ data, category })
           />
           <Legend iconSize={12} iconType="circle" />
           <Bar dataKey="value" name="Count">
-             {chartData.map((_: { name: string; value: number }, index: number) => (
+             {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}
           </Bar>
