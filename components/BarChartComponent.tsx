@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 interface BarChartComponentProps {
@@ -25,25 +25,39 @@ const BarChartComponent: React.FC<BarChartComponentProps> = ({ data, category })
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [data, category]);
   
+  const [isSmall, setIsSmall] = useState(false);
+  useEffect(() => {
+    const onResize = () => setIsSmall(window.innerWidth < 640);
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   if (chartData.length === 0) {
     return <p className="text-center text-gray-500 dark:text-white">Select a category to see the chart.</p>;
   }
 
   return (
-    <div className="w-full h-96">
+    <div className="w-full h-60 sm:h-72 md:h-96">
       <ResponsiveContainer>
         <BarChart
           data={chartData}
           margin={{
             top: 5,
-            right: 30,
-            left: 20,
-            bottom: 80,
+            right: 16,
+            left: 10,
+            bottom: isSmall ? 40 : 80,
           }}
         >
           <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-          <XAxis dataKey="name" angle={-45} textAnchor="end" tick={{ fontSize: 12 }} interval={0} />
-          <YAxis allowDecimals={false} />
+          <XAxis
+            dataKey="name"
+            angle={isSmall ? -30 : -45}
+            textAnchor="end"
+            tick={{ fontSize: isSmall ? 10 : 12 }}
+            interval={isSmall ? 'preserveStartEnd' : 0}
+          />
+          <YAxis allowDecimals={false} tick={{ fontSize: isSmall ? 10 : 12 }} />
           <Tooltip
             contentStyle={{ 
                 backgroundColor: 'rgba(31, 41, 55, 0.8)', 
@@ -53,7 +67,7 @@ const BarChartComponent: React.FC<BarChartComponentProps> = ({ data, category })
             }}
             cursor={{ fill: 'rgba(107, 114, 128, 0.1)' }}
           />
-          <Legend iconSize={12} iconType="circle" />
+          <Legend iconSize={12} iconType="circle" wrapperStyle={{ fontSize: isSmall ? 11 : 12 }} />
           <Bar dataKey="value" name="Count">
              {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

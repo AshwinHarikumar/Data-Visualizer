@@ -1,5 +1,4 @@
-
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface PieChartComponentProps {
@@ -13,6 +12,15 @@ const COLORS = [
 ];
 
 const PieChartComponent: React.FC<PieChartComponentProps> = ({ data, category }) => {
+  const [isSmall, setIsSmall] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => setIsSmall(window.innerWidth < 640);
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const chartData = useMemo(() => {
     const counts = data.reduce((acc, item) => {
       const value = String(item[category]);
@@ -28,7 +36,7 @@ const PieChartComponent: React.FC<PieChartComponentProps> = ({ data, category })
   }
 
   return (
-    <div className="w-full h-96">
+    <div className="w-full h-60 sm:h-72 md:h-96">
       <ResponsiveContainer>
         <PieChart>
           <Pie
@@ -42,12 +50,12 @@ const PieChartComponent: React.FC<PieChartComponentProps> = ({ data, category })
               const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
               const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
               return (
-                <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize="12">
+                <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={isSmall ? 10 : 12}>
                   {`${(percent * 100).toFixed(0)}%`}
                 </text>
               );
             }}
-            outerRadius={120}
+            outerRadius={isSmall ? 100 : 120}
             fill="#8884d8"
             dataKey="value"
           >
@@ -64,7 +72,14 @@ const PieChartComponent: React.FC<PieChartComponentProps> = ({ data, category })
             }}
             cursor={{ fill: 'rgba(107, 114, 128, 0.1)' }}
           />
-          <Legend iconSize={12} iconType="circle" />
+          <Legend
+            iconSize={12}
+            iconType="circle"
+            layout={isSmall ? 'horizontal' : 'horizontal'}
+            verticalAlign={isSmall ? 'bottom' : 'bottom'}
+            align={isSmall ? 'center' : 'center'}
+            wrapperStyle={{ fontSize: isSmall ? 12 : 13 }}
+          />
         </PieChart>
       </ResponsiveContainer>
     </div>

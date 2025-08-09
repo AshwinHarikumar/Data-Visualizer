@@ -9,6 +9,8 @@ export interface HouseholdData {
   totalFloorArea: number;
   yearOfConstruction: number;
   avgMonthlyBill: number;
+  avgMonthlyWaterBill: number;
+  avgMonthlyVehicleCost: number;
   useWindowFilms: boolean;
   hasEnergyEfficientAppliances: boolean;
   unplugDevicesWhenNotinUse: boolean;

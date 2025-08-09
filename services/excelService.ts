@@ -1,9 +1,9 @@
-import * as XLSX from 'xlsx';
 import { HouseholdData } from '../types';
 
 // Helper to normalize header names for flexible matching
 // e.g., "Unit Name" -> "unitname"
 const normalizeHeader = (header: string): string => {
+  if (!header) return '';
   return header.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 };
 
@@ -22,6 +22,9 @@ const headerMapping: { [key: string]: keyof HouseholdData } = {
   familymembers: 'familyMembers',
   numberoffamilymembers: 'familyMembers',
   familysize: 'familyMembers',
+  howmanyperson: 'familyMembers',
+  persons: 'familyMembers',
+  residents: 'familyMembers',
   
   // houseType
   housetype: 'houseType',
@@ -34,6 +37,9 @@ const headerMapping: { [key: string]: keyof HouseholdData } = {
   totalfloorareasqft: 'totalFloorArea',
   totalfloorareasqftmifknown: 'totalFloorArea',
   floorarea: 'totalFloorArea',
+  sqbuilding: 'totalFloorArea',
+  buildingsqft: 'totalFloorArea',
+  areasqft: 'totalFloorArea',
 
   // yearOfConstruction
   yearofconstruction: 'yearOfConstruction',
@@ -46,6 +52,23 @@ const headerMapping: { [key: string]: keyof HouseholdData } = {
   whatisyouraveragemonthlyelectricitybillinrupees: 'avgMonthlyBill',
   monthlybill: 'avgMonthlyBill',
   electricitybill: 'avgMonthlyBill',
+  billamount: 'avgMonthlyBill',
+
+  // avgMonthlyWaterBill
+  avgmonthlywaterbill: 'avgMonthlyWaterBill',
+  waterbill: 'avgMonthlyWaterBill',
+  averagemonthlywaterbill: 'avgMonthlyWaterBill',
+  monthlywaterbill: 'avgMonthlyWaterBill',
+  waterexpense: 'avgMonthlyWaterBill',
+
+  // avgMonthlyVehicleCost
+  avgmonthlyvehiclecost: 'avgMonthlyVehicleCost',
+  vehiclecost: 'avgMonthlyVehicleCost',
+  transportationcost: 'avgMonthlyVehicleCost',
+  fuelcost: 'avgMonthlyVehicleCost',
+  avgmonthlytransportationcost: 'avgMonthlyVehicleCost',
+  monthlyvehiclecost: 'avgMonthlyVehicleCost',
+  vehicleexpense: 'avgMonthlyVehicleCost',
 
   // useWindowFilms
   usewindowfilms: 'useWindowFilms',
@@ -106,92 +129,46 @@ const convertToBoolean = (value: any): boolean => {
 };
 
 const convertToNumber = (value: any): number => {
-    const num = parseInt(String(value), 10);
+    if (value === null || value === undefined) return 0;
+    const num = Number(String(value).replace(/[^0-9.-]+/g,""));
     return isNaN(num) ? 0 : num;
 }
 
-
-export const parseExcelFile = (file: File): Promise<HouseholdData[]> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-
-        reader.onload = (e) => {
-            try {
-                const data = e.target?.result;
-                if (!data) {
-                    throw new Error("File could not be read.");
-                }
-                const workbook = XLSX.read(data, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
-
-                if (jsonData.length === 0) {
-                    throw new Error("The Excel sheet is empty or not formatted correctly.");
-                }
-                
-                // Find the mapping from the actual headers in the file to our data keys
-                const fileHeaders = Object.keys(jsonData[0]);
-                const fileHeaderMapping: { [key: string]: keyof HouseholdData } = {};
-                let foundHeaders = 0;
-                
-                fileHeaders.forEach(header => {
-                    const normalized = normalizeHeader(header);
-                    if (headerMapping[normalized]) {
-                        fileHeaderMapping[header] = headerMapping[normalized];
-                        foundHeaders++;
-                    }
-                });
-
-                if (foundHeaders < 5) { // Increased threshold for better validation
-                    throw new Error("Could not map Excel columns. Please ensure headers like 'Name', 'House Type', etc., are present.");
-                }
-
-                const mappedData: Partial<HouseholdData>[] = jsonData.map(row => {
-                    const newRow: Partial<HouseholdData> = {};
-                    for (const header in fileHeaderMapping) {
-                        const mappedKey = fileHeaderMapping[header];
-                        if (row[header] !== undefined) {
-                            (newRow as any)[mappedKey] = row[header];
-                        }
-                    }
-                    return newRow;
-                });
-                
-                const processedData = mappedData.map((row) => {
-                     return {
-                        unitName: String(row.unitName || ''),
-                        name: String(row.name || ''),
-                        location: String(row.location || ''),
-                        familyMembers: convertToNumber(row.familyMembers),
-                        houseType: String(row.houseType || 'N/A'),
-                        houseStructure: String(row.houseStructure || 'N/A'),
-                        totalFloorArea: convertToNumber(row.totalFloorArea),
-                        yearOfConstruction: convertToNumber(row.yearOfConstruction),
-                        avgMonthlyBill: convertToNumber(row.avgMonthlyBill),
-                        useWindowFilms: convertToBoolean(row.useWindowFilms),
-                        hasEnergyEfficientAppliances: convertToBoolean(row.hasEnergyEfficientAppliances),
-                        unplugDevicesWhenNotinUse: convertToBoolean(row.unplugDevicesWhenNotinUse),
-                        usePowerStrip: convertToBoolean(row.usePowerStrip),
-                        cleanRefrigeratorCoils: convertToBoolean(row.cleanRefrigeratorCoils),
-                        hasSolarPanels: convertToBoolean(row.hasSolarPanels),
-                        cookingFuel: String(row.cookingFuel || 'N/A'),
-                    };
-                });
-
-                resolve(processedData);
-
-            } catch (error: any) {
-                console.error("Error parsing Excel file:", error);
-                reject(new Error(error.message || "Failed to parse the Excel file."));
+export const normalizeData = (jsonData: any[]): HouseholdData[] => {
+    if (!Array.isArray(jsonData)) {
+        console.error("Normalization failed: provided data is not an array.", jsonData);
+        throw new Error("Provided data is not an array.");
+    }
+    
+    return jsonData.map((rawRow) => {
+        const newRow: Partial<HouseholdData> = {};
+        for (const rawKey in rawRow) {
+            const normalizedKey = normalizeHeader(rawKey);
+            const mappedKey = headerMapping[normalizedKey] || rawKey as keyof HouseholdData;
+            if (mappedKey) {
+                (newRow as any)[mappedKey] = rawRow[rawKey];
             }
+        }
+        
+        return {
+            unitName: String(newRow.unitName || ''),
+            name: String(newRow.name || ''),
+            location: String(newRow.location || ''),
+            familyMembers: convertToNumber(newRow.familyMembers),
+            houseType: String(newRow.houseType || 'N/A'),
+            houseStructure: String(newRow.houseStructure || 'N/A'),
+            totalFloorArea: convertToNumber(newRow.totalFloorArea),
+            yearOfConstruction: convertToNumber(newRow.yearOfConstruction),
+            avgMonthlyBill: convertToNumber(newRow.avgMonthlyBill),
+            avgMonthlyWaterBill: convertToNumber(newRow.avgMonthlyWaterBill),
+            avgMonthlyVehicleCost: convertToNumber(newRow.avgMonthlyVehicleCost),
+            useWindowFilms: convertToBoolean(newRow.useWindowFilms),
+            hasEnergyEfficientAppliances: convertToBoolean(newRow.hasEnergyEfficientAppliances),
+            unplugDevicesWhenNotinUse: convertToBoolean(newRow.unplugDevicesWhenNotinUse),
+            usePowerStrip: convertToBoolean(newRow.usePowerStrip),
+            cleanRefrigeratorCoils: convertToBoolean(newRow.cleanRefrigeratorCoils),
+            hasSolarPanels: convertToBoolean(newRow.hasSolarPanels),
+            cookingFuel: String(newRow.cookingFuel || 'N/A'),
         };
-
-        reader.onerror = (error) => {
-            console.error("FileReader error:", error);
-            reject(new Error("Failed to read the file."));
-        };
-
-        reader.readAsArrayBuffer(file);
     });
 };
