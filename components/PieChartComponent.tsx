@@ -12,13 +12,20 @@ const COLORS = [
 ];
 
 const PieChartComponent: React.FC<PieChartComponentProps> = ({ data, category }) => {
-  const [isSmall, setIsSmall] = useState(false);
+  const [screenSize, setScreenSize] = useState<'xs' | 'sm' | 'md' | 'lg'>('lg');
 
   useEffect(() => {
-    const onResize = () => setIsSmall(window.innerWidth < 640);
-    onResize();
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    const updateScreenSize = () => {
+      const width = window.innerWidth;
+      if (width < 480) setScreenSize('xs');
+      else if (width < 640) setScreenSize('sm');
+      else if (width < 1024) setScreenSize('md');
+      else setScreenSize('lg');
+    };
+    
+    updateScreenSize();
+    window.addEventListener('resize', updateScreenSize);
+    return () => window.removeEventListener('resize', updateScreenSize);
   }, []);
 
   const chartData = useMemo(() => {
@@ -32,30 +39,83 @@ const PieChartComponent: React.FC<PieChartComponentProps> = ({ data, category })
   }, [data, category]);
 
   if (chartData.length === 0) {
-    return <p className="text-center text-gray-500 dark:text-white">Select a category to see the chart.</p>;
+    return <p className="text-center text-gray-500 dark:text-white p-4">Select a category to see the chart.</p>;
   }
 
+  const getOuterRadius = () => {
+    switch (screenSize) {
+      case 'xs': return 80;
+      case 'sm': return 100;
+      case 'md': return 110;
+      default: return 120;
+    }
+  };
+
+  const getLabelFontSize = () => {
+    switch (screenSize) {
+      case 'xs': return 8;
+      case 'sm': return 10;
+      case 'md': return 11;
+      default: return 12;
+    }
+  };
+
+  const getLegendConfig = () => {
+    switch (screenSize) {
+      case 'xs': 
+        return {
+          layout: 'horizontal' as const,
+          verticalAlign: 'bottom' as const,
+          align: 'center' as const,
+          wrapperStyle: { fontSize: '10px', paddingTop: '10px' }
+        };
+      case 'sm':
+        return {
+          layout: 'horizontal' as const,
+          verticalAlign: 'bottom' as const,
+          align: 'center' as const,
+          wrapperStyle: { fontSize: '11px', paddingTop: '15px' }
+        };
+      default:
+        return {
+          layout: 'horizontal' as const,
+          verticalAlign: 'bottom' as const,
+          align: 'center' as const,
+          wrapperStyle: { fontSize: '12px', paddingTop: '20px' }
+        };
+    }
+  };
+
   return (
-    <div className="w-full h-60 sm:h-72 md:h-96">
-      <ResponsiveContainer>
+    <div className="w-full h-48 xs:h-56 sm:h-64 md:h-80 lg:h-96">
+      <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
             data={chartData}
             cx="50%"
-            cy="50%"
+            cy={screenSize === 'xs' ? '45%' : '50%'}
             labelLine={false}
             label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+              if (percent < 0.05 && screenSize === 'xs') return null; // Hide small labels on mobile
               if (percent === 0) return null;
               const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
               const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
               const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
               return (
-                <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={isSmall ? 10 : 12}>
+                <text 
+                  x={x} 
+                  y={y} 
+                  fill="white" 
+                  textAnchor="middle" 
+                  dominantBaseline="central" 
+                  fontSize={getLabelFontSize()}
+                  fontWeight="bold"
+                >
                   {`${(percent * 100).toFixed(0)}%`}
                 </text>
               );
             }}
-            outerRadius={isSmall ? 100 : 120}
+            outerRadius={getOuterRadius()}
             fill="#8884d8"
             dataKey="value"
           >
@@ -65,20 +125,18 @@ const PieChartComponent: React.FC<PieChartComponentProps> = ({ data, category })
           </Pie>
           <Tooltip
             contentStyle={{ 
-                backgroundColor: 'rgba(31, 41, 55, 0.8)', 
+                backgroundColor: 'rgba(31, 41, 55, 0.9)', 
                 borderColor: '#4B5563',
                 borderRadius: '0.5rem',
-                color: '#ffffff'
+                color: '#ffffff',
+                fontSize: screenSize === 'xs' ? '12px' : '14px'
             }}
             cursor={{ fill: 'rgba(107, 114, 128, 0.1)' }}
           />
           <Legend
-            iconSize={12}
+            iconSize={screenSize === 'xs' ? 8 : 12}
             iconType="circle"
-            layout={isSmall ? 'horizontal' : 'horizontal'}
-            verticalAlign={isSmall ? 'bottom' : 'bottom'}
-            align={isSmall ? 'center' : 'center'}
-            wrapperStyle={{ fontSize: isSmall ? 12 : 13 }}
+            {...getLegendConfig()}
           />
         </PieChart>
       </ResponsiveContainer>

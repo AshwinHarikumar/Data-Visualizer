@@ -5,6 +5,7 @@ interface InitialViewProps {
   onProcessFile: (file: File) => void;
   isLoading: boolean;
   error: string | null;
+  isCacheLoading?: boolean;
 }
 
 const LoadingSpinner = () => (
@@ -15,7 +16,7 @@ const LoadingSpinner = () => (
 );
   
 const InitialView: React.FC<InitialViewProps> = ({ 
-  onProcessFile, isLoading, error 
+  onProcessFile, isLoading, error, isCacheLoading = false 
 }) => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -34,6 +35,11 @@ const InitialView: React.FC<InitialViewProps> = ({
 
     const handleBrowseClick = () => {
         fileInputRef.current?.click();
+    };
+
+    const getLoadingText = () => {
+        if (isCacheLoading) return 'Checking cache...';
+        return 'Processing...';
     };
 
     return (
@@ -77,7 +83,7 @@ const InitialView: React.FC<InitialViewProps> = ({
                     disabled={isLoading || !selectedFile}
                     className="mt-4 w-full inline-flex items-center justify-center px-4 sm:px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                    {isLoading ? <><LoadingSpinner/> Processing...</> : 'Process File & Visualize'}
+                    {isLoading ? <><LoadingSpinner/> {getLoadingText()}</> : 'Process File & Visualize'}
                 </button>
             </div>
           </div>

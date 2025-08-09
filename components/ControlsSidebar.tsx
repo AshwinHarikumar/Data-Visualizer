@@ -2,6 +2,7 @@ import React from 'react';
 import { PieChartIcon, TableIcon, BarChartIcon, UserIcon } from './icons';
 import { ChartType } from '../App';
 import { HouseholdData } from '../types';
+import { cacheService } from '../services/cacheService';
 
 type View = 'table' | 'chart';
 type AnalysisTab = 'column' | 'row';
@@ -25,6 +26,7 @@ interface AnalysisControlsProps {
   tableData: HouseholdData[];
   selectedRowIndex: number | null;
   setSelectedRowIndex: (index: number) => void;
+  onClearCache?: () => void;
 }
 
 const formatCategoryName = (name: string) => {
@@ -34,8 +36,37 @@ const formatCategoryName = (name: string) => {
 const AnalysisControls: React.FC<AnalysisControlsProps> = ({
     activeAnalysisTab, setActiveAnalysisTab, onReset,
     activeView, setActiveView, chartType, setChartType, selectedCategory, setSelectedCategory, availableKeys,
-    tableData, selectedRowIndex, setSelectedRowIndex
+    tableData, selectedRowIndex, setSelectedRowIndex, onClearCache
 }) => {
+    const [cacheInfo, setCacheInfo] = React.useState({ 
+        totalEntries: 0, 
+        totalSize: 0, 
+        files: [] as Array<{name: string; records: number; timestamp: Date}>
+    });
+
+    React.useEffect(() => {
+        const info = cacheService.getCacheInfo();
+        setCacheInfo(info);
+    }, []);
+
+    const handleClearCache = () => {
+        cacheService.clearCache();
+        setCacheInfo({ totalEntries: 0, totalSize: 0, files: [] });
+        if (onClearCache) onClearCache();
+    };
+
+    const formatCacheTimestamp = (timestamp: Date) => {
+        const now = new Date();
+        const diffMs = now.getTime() - timestamp.getTime();
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        const diffHours = Math.floor(diffMins / 60);
+        
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        return timestamp.toLocaleDateString();
+    };
+
     return (
         <aside className="lg:w-80 bg-white/60 dark:bg-gray-800/60 backdrop-blur-md p-4 sm:p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col">
             <div className="flex-grow">
@@ -189,12 +220,53 @@ const AnalysisControls: React.FC<AnalysisControlsProps> = ({
                 )}
             </div>
 
-            <button
-                onClick={onReset}
-                className="mt-8 w-full inline-flex justify-center items-center px-4 py-2 border border-red-500 text-sm font-medium rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
-            >
-                Reset Data
-            </button>
+            {/* Enhanced Cache Info */}
+            {/* {cacheInfo.totalEntries > 0 && (
+                <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-900/50 rounded-lg">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                        Cache: {cacheInfo.files.length} file{cacheInfo.files.length !== 1 ? 's' : ''} 
+                        ({(cacheInfo.totalSize / 1024).toFixed(1)} KB)
+                    </p>
+                    {cacheInfo.files.length > 0 && (
+                        <div className="space-y-1 max-h-20 overflow-y-auto">
+                            {cacheInfo.files.slice(0, 3).map((file, index) => (
+                                <div key={index} className="text-xs text-gray-500 dark:text-gray-500">
+                                    <div className="truncate" title={file.name}>
+                                        {file.name.length > 20 ? `${file.name.substring(0, 20)}...` : file.name}
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>{file.records} records</span>
+                                        <span>{formatCacheTimestamp(file.timestamp)}</span>
+                                    </div>
+                                </div>
+                            ))}
+                            {cacheInfo.files.length > 3 && (
+                                <div className="text-xs text-gray-400">
+                                    +{cacheInfo.files.length - 3} more...
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )} */}
+
+            <div className="mt-4 space-y-2">
+                {/* {cacheInfo.totalEntries > 0 && (
+                    <button
+                        onClick={handleClearCache}
+                        className="w-full inline-flex justify-center items-center px-4 py-2 border border-yellow-500 text-sm font-medium rounded-md text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors"
+                    >
+                        Clear Cache
+                    </button>
+                )} */}
+                
+                <button
+                    onClick={onReset}
+                    className="w-full inline-flex justify-center items-center px-4 py-2 border border-red-500 text-sm font-medium rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                >
+                    Reset Data
+                </button>
+            </div>
         </aside>
     );
 };

@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { processFileWithAI } from './services/geminiService';
+import { cacheService } from './services/cacheService';
 
 // Import Components
 import DataTable from './components/DataTable';
@@ -20,7 +21,8 @@ const App: React.FC = () => {
   const [availableKeys, setAvailableKeys] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [isCacheLoading, setIsCacheLoading] = useState(false);
+
   // Column Analysis State
   const [activeView, setActiveView] = useState<View>('chart');
   const [chartType, setChartType] = useState<ChartType>('pie');
@@ -51,19 +53,66 @@ const App: React.FC = () => {
 
   const handleProcessFile = useCallback(async (file: File) => {
     setIsLoading(true);
+    setIsCacheLoading(true);
     setError(null);
+
     try {
-      const data = await processFileWithAI(file);
-      handleSetData(data);
+      // Check cache first
+      console.log('Checking cache for file:', file.name);
+      const cacheResult = await cacheService.getCache(file);
+      
+      if (cacheResult.data && !cacheResult.shouldUpdate) {
+        // Perfect cache hit - use cached data
+        console.log('Loading data from cache (exact match)');
+        handleSetData(cacheResult.data);
+        setIsCacheLoading(false);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (cacheResult.data && cacheResult.shouldUpdate) {
+        // Partial cache hit - we have some data but should check for more
+        console.log(`Cache hit but checking for updates: ${cacheResult.reason}`);
+        handleSetData(cacheResult.data); // Show cached data immediately
+        setIsCacheLoading(false);
+        
+        // Continue processing to check for more complete data
+      } else {
+        // No cache - continue with full processing
+        console.log(`No cache found: ${cacheResult.reason}`);
+        setIsCacheLoading(false);
+      }
+      
+      // Process the file
+      console.log('Processing file for latest data...');
+      const result = await processFileWithAI(file);
+      
+      // Check if we should update cache and UI
+      const wasUpdated = await cacheService.updateCacheIfBetter(file, result, cacheResult.data || undefined);
+      
+      if (wasUpdated || !cacheResult.data) {
+        // Update UI only if we got better data or had no cached data
+        handleSetData(result);
+        console.log(`UI updated with ${result.length} records`);
+      } else {
+        console.log('Using existing cached data as it has equal or more records');
+      }
+      
     } catch (err: any) {
-      setError(err.message || 'An unknown error occurred while processing the file.');
+      setError(err.message || 'An error occurred while processing the file.');
       setTableData(null);
       setAvailableKeys([]);
     } finally {
       setIsLoading(false);
+      setIsCacheLoading(false);
     }
   }, [handleSetData]);
   
+  // Clean up cache on app start
+  React.useEffect(() => {
+    cacheService.cleanupCache();
+  }, []);
+
   const handleReset = () => {
       setTableData(null);
       setError(null);

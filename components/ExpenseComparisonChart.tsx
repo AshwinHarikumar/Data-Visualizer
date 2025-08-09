@@ -19,8 +19,8 @@ const COLORS: { [key in ExpenseData['name']]: string } = {
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="p-3 bg-gray-900/80 backdrop-blur-sm text-white rounded-lg shadow-lg border border-gray-700">
-          <p className="font-bold">{`${label}: ₹${payload[0].value.toLocaleString()}`}</p>
+        <div className="p-2 sm:p-3 bg-gray-900/90 backdrop-blur-sm text-white rounded-lg shadow-lg border border-gray-700">
+          <p className="font-bold text-xs sm:text-sm">{`${label}: ₹${payload[0].value.toLocaleString()}`}</p>
         </div>
       );
     }
@@ -29,26 +29,89 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const ExpenseComparisonChart: React.FC<ExpenseComparisonChartProps> = ({ data }) => {
     if (!data || data.length === 0) {
-        return <p className="text-center text-gray-400 h-64 flex items-center justify-center">No expense data available for comparison.</p>;
+        return <p className="text-center text-gray-400 h-48 sm:h-64 flex items-center justify-center text-sm sm:text-base px-4">No expense data available for comparison.</p>;
     }
 
-    const [isSmall, setIsSmall] = useState(false);
+    const [screenSize, setScreenSize] = useState<'xs' | 'sm' | 'md' | 'lg'>('lg');
+    
     useEffect(() => {
-        const onResize = () => setIsSmall(window.innerWidth < 640);
-        onResize();
-        window.addEventListener('resize', onResize);
-        return () => window.removeEventListener('resize', onResize);
+        const updateScreenSize = () => {
+            const width = window.innerWidth;
+            if (width < 480) setScreenSize('xs');
+            else if (width < 640) setScreenSize('sm');
+            else if (width < 1024) setScreenSize('md');
+            else setScreenSize('lg');
+        };
+        
+        updateScreenSize();
+        window.addEventListener('resize', updateScreenSize);
+        return () => window.removeEventListener('resize', updateScreenSize);
     }, []);
 
+    const getMargins = () => {
+        switch (screenSize) {
+            case 'xs': return { top: 5, right: 8, left: 8, bottom: 5 };
+            case 'sm': return { top: 5, right: 12, left: 8, bottom: 5 };
+            default: return { top: 5, right: 16, left: 8, bottom: 5 };
+        }
+    };
+
+    const getTickFontSize = () => {
+        switch (screenSize) {
+            case 'xs': return 8;
+            case 'sm': return 9;
+            case 'md': return 11;
+            default: return 12;
+        }
+    };
+
+    const getBarSize = () => {
+        switch (screenSize) {
+            case 'xs': return 18;
+            case 'sm': return 22;
+            case 'md': return 28;
+            default: return 35;
+        }
+    };
+
+    const getYAxisWidth = () => {
+        switch (screenSize) {
+            case 'xs': return 40;
+            case 'sm': return 45;
+            case 'md': return 60;
+            default: return 70;
+        }
+    };
+
     return (
-        <div className="w-full h-56 sm:h-64">
-            <ResponsiveContainer>
-                <BarChart data={data} layout="vertical" margin={{ top: 5, right: 16, left: 8, bottom: 5 }}>
+        <div className="w-full h-48 xs:h-52 sm:h-56 md:h-64">
+            <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data} layout="vertical" margin={getMargins()}>
                     <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
-                    <XAxis type="number" stroke="#9CA3AF" tick={{ fill: '#D1D5DB', fontSize: isSmall ? 10 : 12 }} unit="₹" />
-                    <YAxis type="category" dataKey="name" stroke="#9CA3AF" tick={{ fill: '#D1D5DB', fontSize: isSmall ? 12 : 14 }} width={isSmall ? 50 : 70} />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(107, 114, 128, 0.1)' }} />
-                    <Bar dataKey="cost" name="Monthly Cost" barSize={isSmall ? 24 : 35}>
+                    <XAxis 
+                        type="number" 
+                        stroke="#9CA3AF" 
+                        tick={{ 
+                            fill: '#D1D5DB', 
+                            fontSize: getTickFontSize() 
+                        }} 
+                        unit="₹" 
+                    />
+                    <YAxis 
+                        type="category" 
+                        dataKey="name" 
+                        stroke="#9CA3AF" 
+                        tick={{ 
+                            fill: '#D1D5DB', 
+                            fontSize: getTickFontSize() 
+                        }} 
+                        width={getYAxisWidth()}
+                    />
+                    <Tooltip 
+                        content={<CustomTooltip />} 
+                        cursor={{ fill: 'rgba(107, 114, 128, 0.1)' }} 
+                    />
+                    <Bar dataKey="cost" name="Monthly Cost" barSize={getBarSize()}>
                         {data.map((entry) => (
                             <Cell key={`cell-${entry.name}`} fill={COLORS[entry.name] || '#8884d8'} />
                         ))}
