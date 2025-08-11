@@ -1,6 +1,7 @@
 import { GoogleGenAI, Part, Type } from "@google/genai";
 import { normalizeData } from './excelService';
-import { HouseholdData } from "../types";
+import { HouseholdData, GenericDataset } from "../types";
+import { analyzeDataset } from './dataAnalysisService';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
@@ -163,5 +164,108 @@ export const getEnergyBreakdown = async (
   } catch (error) {
     console.error("Error getting energy breakdown from Gemini API:", error);
     throw new Error("AI could not generate an energy breakdown for this household.");
+  }
+};
+
+// Generic data extraction function that works with any tabular data
+export const processFileWithAIGeneric = async (file: File): Promise<GenericDataset> => {
+  const filePart = await fileToGenerativePart(file);
+
+  const textPart = {
+    text: `You are an expert data extractor. Your task is to analyze the provided file and extract ALL tabular data, regardless of the subject matter.
+
+INSTRUCTIONS:
+1. Extract all rows and columns of data from tables, forms, spreadsheets, or any structured content
+2. Preserve original column names as much as possible, but clean them up (remove special characters, make them valid JSON keys)
+3. Convert data types appropriately:
+   - Numbers: Extract pure numbers, remove currency symbols, commas, units
+   - Booleans: Convert "Yes/No", "True/False", "1/0", "Y/N" to true/false
+   - Text: Keep as strings, clean up whitespace
+   - Dates: Convert to ISO format if recognizable
+4. If a cell is empty or unclear, use appropriate defaults (empty string for text, 0 for numbers, false for booleans)
+5. Create consistent column names across all rows
+6. Handle various data formats: surveys, reports, forms, tables, lists
+
+IMPORTANT: Return ONLY a valid JSON array of objects. Each object represents one row of data. Do not include any explanations, markdown, or additional text.
+
+EXAMPLE OUTPUT FORMAT:
+[
+  {"column1": "value1", "column2": 123, "column3": true},
+  {"column1": "value2", "column2": 456, "column3": false}
+]`
+  };
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ parts: [textPart, filePart] }],
+      config: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    const jsonText = response.text.trim();
+    if (!jsonText) {
+      throw new Error("The model returned an empty response. The document might not contain recognizable data.");
+    }
+    
+    const rawData = JSON.parse(jsonText);
+    
+    if (!Array.isArray(rawData)) {
+      throw new Error("The extracted data is not an array. The document might not contain tabular data.");
+    }
+
+    if (rawData.length === 0) {
+      throw new Error("No data rows were extracted. The document might be empty or contain non-tabular content.");
+    }
+
+    // Clean and validate the data
+    const cleanedData = rawData.map((row, index) => {
+      if (typeof row !== 'object' || row === null) {
+        console.warn(`Row ${index} is not a valid object, skipping`);
+        return null;
+      }
+      
+      // Clean column names and values
+      const cleanedRow: Record<string, any> = {};
+      Object.entries(row).forEach(([key, value]) => {
+        // Clean column name: remove special chars, make camelCase
+        const cleanKey = key.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim()
+          .split(' ').map((word, i) => i === 0 ? word.toLowerCase() : 
+            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join('');
+        
+        if (cleanKey) {
+          cleanedRow[cleanKey] = value;
+        }
+      });
+      
+      return Object.keys(cleanedRow).length > 0 ? cleanedRow : null;
+    }).filter(row => row !== null);
+
+    if (cleanedData.length === 0) {
+      throw new Error("No valid data rows found after cleaning. The document format might be unsupported.");
+    }
+
+    return cleanedData;
+  } catch (error) {
+    console.error("Error processing file with Gemini API:", error);
+    
+    if (error instanceof SyntaxError) {
+      throw new Error("Failed to parse the extracted data. The document structure may be too complex.");
+    }
+    
+    if (error instanceof Error && error.message.includes('No data rows')) {
+      throw error;
+    }
+    
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    
+    if (fileExtension === '.pdf') {
+      throw new Error("Failed to extract data from the PDF. The PDF may be image-based, password-protected, or contain complex layouts.");
+    } else if (fileExtension === '.xlsx' || fileExtension === '.xls') {
+      throw new Error("Failed to extract data from the Excel file. Please ensure it contains clear tabular data.");
+    } else {
+      throw new Error("Failed to parse data from the uploaded file. Please ensure it contains tabular data in a supported format.");
+    }
   }
 };

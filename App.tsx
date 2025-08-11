@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { processFileWithAI } from './services/geminiService';
+import { processFileWithAI, processFileWithAIGeneric } from './services/geminiService';
+import { analyzeDataset, getCategoricalColumns } from './services/dataAnalysisService';
 import { cacheService } from './services/cacheService';
 
 // Import Components
@@ -10,18 +11,20 @@ import InitialView from './components/InitialView';
 import AnalysisControls from './components/ControlsSidebar';
 import RowAnalysisView from './components/RowAnalysisView';
 import { XIcon } from './components/icons';
-import { HouseholdData } from './types';
+import { HouseholdData, GenericDataset, DatasetMetadata } from './types';
 
 type View = 'table' | 'chart';
 export type ChartType = 'pie' | 'bar';
 type AnalysisTab = 'column' | 'row';
 
 const App: React.FC = () => {
-  const [tableData, setTableData] = useState<HouseholdData[] | null>(null);
+  const [tableData, setTableData] = useState<GenericDataset | null>(null);
+  const [datasetMetadata, setDatasetMetadata] = useState<DatasetMetadata | null>(null);
   const [availableKeys, setAvailableKeys] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isCacheLoading, setIsCacheLoading] = useState(false);
+  const [processingMode, setProcessingMode] = useState<'household' | 'generic'>('generic');
 
   // Column Analysis State
   const [activeView, setActiveView] = useState<View>('chart');
@@ -32,21 +35,34 @@ const App: React.FC = () => {
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<AnalysisTab>('column');
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
 
-  const handleSetData = useCallback((data: HouseholdData[]) => {
+  const handleSetData = useCallback((data: GenericDataset, metadata?: DatasetMetadata) => {
     setTableData(data);
     setError(null);
+    
+    // Analyze dataset if metadata not provided
+    const meta = metadata || analyzeDataset(data);
+    setDatasetMetadata(meta);
+    
     if (data && data.length > 0) {
       const keys = Object.keys(data[0]);
       setAvailableKeys(keys);
-      setSelectedCategory(keys[0] || '');
+      
+      // Select first categorical column for pie charts, or first column as fallback
+      const categoricalColumns = getCategoricalColumns(meta);
+      const defaultCategory = categoricalColumns.length > 0 
+        ? categoricalColumns[0].name 
+        : keys[0] || '';
+      
+      setSelectedCategory(defaultCategory);
       setActiveView('chart');
       setChartType('pie');
-      setActiveAnalysisTab('column');
+      setActiveAnalysisTab(meta.dataType === 'household' ? 'column' : 'column');
       setSelectedRowIndex(0); // Select the first row by default for row analysis
     } else {
       setAvailableKeys([]);
       setSelectedCategory('');
       setSelectedRowIndex(null);
+      setDatasetMetadata(null);
       setError("No data could be extracted. Please check the file content and format.");
     }
   }, []);
@@ -64,7 +80,9 @@ const App: React.FC = () => {
       if (cacheResult.data && !cacheResult.shouldUpdate) {
         // Perfect cache hit - use cached data
         console.log('Loading data from cache (exact match)');
-        handleSetData(cacheResult.data);
+        const metadata = analyzeDataset(cacheResult.data);
+        handleSetData(cacheResult.data, metadata);
+        setProcessingMode(metadata.dataType === 'household' ? 'household' : 'generic');
         setIsCacheLoading(false);
         setIsLoading(false);
         return;
@@ -73,7 +91,9 @@ const App: React.FC = () => {
       if (cacheResult.data && cacheResult.shouldUpdate) {
         // Partial cache hit - we have some data but should check for more
         console.log(`Cache hit but checking for updates: ${cacheResult.reason}`);
-        handleSetData(cacheResult.data); // Show cached data immediately
+        const metadata = analyzeDataset(cacheResult.data);
+        handleSetData(cacheResult.data, metadata); // Show cached data immediately
+        setProcessingMode(metadata.dataType === 'household' ? 'household' : 'generic');
         setIsCacheLoading(false);
         
         // Continue processing to check for more complete data
@@ -83,16 +103,43 @@ const App: React.FC = () => {
         setIsCacheLoading(false);
       }
       
-      // Process the file
+      // Process the file with generic processing first
       console.log('Processing file for latest data...');
-      const result = await processFileWithAI(file);
+      let result: GenericDataset;
+      let metadata: DatasetMetadata;
+      
+      try {
+        result = await processFileWithAIGeneric(file);
+        metadata = analyzeDataset(result);
+        setProcessingMode('generic');
+        
+        // If it looks like household data, try the specific processor for better accuracy
+        if (metadata.dataType === 'household') {
+          try {
+            const householdData = await processFileWithAI(file);
+            result = householdData;
+            metadata = analyzeDataset(result);
+            setProcessingMode('household');
+          } catch (householdError) {
+            console.log('Household processing failed, using generic data:', householdError);
+            // Keep the generic data
+          }
+        }
+      } catch (genericError) {
+        console.log('Generic processing failed, trying household-specific:', genericError);
+        // Fall back to household-specific processing
+        const householdData = await processFileWithAI(file);
+        result = householdData;
+        metadata = analyzeDataset(result);
+        setProcessingMode('household');
+      }
       
       // Check if we should update cache and UI
       const wasUpdated = await cacheService.updateCacheIfBetter(file, result, cacheResult.data || undefined);
       
       if (wasUpdated || !cacheResult.data) {
         // Update UI only if we got better data or had no cached data
-        handleSetData(result);
+        handleSetData(result, metadata);
         console.log(`UI updated with ${result.length} records`);
       } else {
         console.log('Using existing cached data as it has equal or more records');
@@ -101,6 +148,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       setError(err.message || 'An error occurred while processing the file.');
       setTableData(null);
+      setDatasetMetadata(null);
       setAvailableKeys([]);
     } finally {
       setIsLoading(false);
@@ -130,8 +178,17 @@ const App: React.FC = () => {
       .replace(/^./, (str) => str.toUpperCase());
 
     return (
-        <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 h-full">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{chartTitle} Distribution</h3>
+        <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md p-3 xs:p-4 sm:p-6 rounded-lg sm:rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 h-full">
+          <br/>
+       
+            <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between mb-3 sm:mb-4 gap-2">
+                <h3 className="text-base xs:text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">{chartTitle} Distribution</h3>
+                {datasetMetadata && (
+                    <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                        {datasetMetadata.rowCount} records • {datasetMetadata.dataType} data
+                    </div>
+                )}
+            </div>
             {chartType === 'pie' && <PieChartComponent data={tableData} category={selectedCategory} />}
             {chartType === 'bar' && <BarChartComponent data={tableData} category={selectedCategory} />}
         </div>
@@ -139,7 +196,7 @@ const App: React.FC = () => {
   };
   
   const renderDataView = () => (
-    <div className="flex flex-col lg:flex-row gap-6 w-full">
+    <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 lg:gap-6 w-full">
       <AnalysisControls 
         activeAnalysisTab={activeAnalysisTab}
         setActiveAnalysisTab={setActiveAnalysisTab}
@@ -152,6 +209,7 @@ const App: React.FC = () => {
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}
         availableKeys={availableKeys}
+        datasetMetadata={datasetMetadata}
         // Row props
         tableData={tableData || []}
         selectedRowIndex={selectedRowIndex}
@@ -178,28 +236,47 @@ const App: React.FC = () => {
             </div>
           )
         ) : (
-          <RowAnalysisView 
-            dataRow={tableData && selectedRowIndex !== null ? tableData[selectedRowIndex] : null}
-            allData={tableData}
-          />
+          datasetMetadata?.dataType === 'household' ? (
+            <RowAnalysisView 
+              dataRow={tableData && selectedRowIndex !== null ? tableData[selectedRowIndex] as any : null}
+              allData={tableData as any}
+            />
+          ) : (
+            <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-md p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 h-full flex items-center justify-center">
+              <div className="text-center">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Row Analysis Not Available</h3>
+                <p className="text-gray-600 dark:text-gray-300">
+                  Row-by-row analysis is currently only available for household energy data.
+                  <br />
+                  Please use the column analysis to explore your {datasetMetadata?.dataType || 'generic'} data.
+                </p>
+                <button
+                  onClick={() => setActiveAnalysisTab('column')}
+                  className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                >
+                  Switch to Column Analysis
+                </button>
+              </div>
+            </div>
+          )
         )}
       </main>
     </div>
   );
 
   return (
-    <div className="min-h-screen text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8">
-      <header className="text-center mb-10">
-        <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-5xl md:text-6xl">
+    <div className="min-h-screen text-gray-900 dark:text-gray-100 p-2 xs:p-3 sm:p-4 lg:p-6 xl:p-8">
+      <header className="text-center mb-6 sm:mb-8 lg:mb-10">
+        <h1 className="text-2xl xs:text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold tracking-tight text-gray-900 dark:text-white">
            Data Visualizer
         </h1>
-        <p className="mt-3 max-w-md mx-auto text-base text-gray-500 dark:text-gray-400 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
+        <p className="mt-2 sm:mt-3 max-w-sm xs:max-w-md sm:max-w-lg lg:max-w-3xl mx-auto text-xs xs:text-sm sm:text-base lg:text-lg xl:text-xl text-gray-500 dark:text-gray-400 px-2">
           Upload any PDF or Excel file with tabular data. AI will automatically extract it and generate interactive charts.
         </p>
       </header>
       
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white/30 dark:bg-gray-800/30 shadow-2xl rounded-2xl p-6 min-h-[600px] flex items-center justify-center backdrop-blur-lg border border-gray-200/50 dark:border-gray-700/50">
+        <div className="bg-white/30 dark:bg-gray-800/30 shadow-2xl rounded-xl sm:rounded-2xl p-3 xs:p-4 sm:p-6 min-h-[400px] xs:min-h-[500px] sm:min-h-[600px] flex items-center justify-center backdrop-blur-lg border border-gray-200/50 dark:border-gray-700/50">
             {tableData ? renderDataView() : 
                 <InitialView 
                     isLoading={isLoading}
@@ -209,8 +286,8 @@ const App: React.FC = () => {
             }
         </div>
       </div>
-       <footer className="text-center mt-12 text-sm text-gray-500 dark:text-gray-400">
-          <p>Contact : <a href="mailto:ashwinharikumar2003@gmail.com">ashwinharikumar2003@gmail.com</a></p>
+       <footer className="text-center mt-6 sm:mt-8 lg:mt-12 text-xs sm:text-sm text-gray-500 dark:text-gray-400 px-2">
+          <p>Contact : <a href="mailto:ashwinharikumar2003@gmail.com" className="hover:text-indigo-400 transition-colors">ashwinharikumar2003@gmail.com</a></p>
         </footer>
     </div>
   );

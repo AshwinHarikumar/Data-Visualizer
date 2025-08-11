@@ -1,7 +1,7 @@
-import { HouseholdData } from '../types';
+import { HouseholdData, GenericDataset } from '../types';
 
 interface CacheEntry {
-  data: HouseholdData[];
+  data: GenericDataset;
   timestamp: number;
   fileName: string;
   fileSize: number;
@@ -57,7 +57,7 @@ export const cacheService = {
   },
 
   // Store data in cache
-  setCache: async (file: File, data: HouseholdData[]): Promise<void> => {
+  setCache: async (file: File, data: GenericDataset): Promise<void> => {
     try {
       const fileHash = await generateFileHash(file);
       const cacheKey = `${CACHE_KEY_PREFIX}${fileHash}`;
@@ -89,7 +89,7 @@ export const cacheService = {
   },
 
   // Enhanced cache retrieval with data completeness check
-  getCache: async (file: File): Promise<{ data: HouseholdData[] | null; shouldUpdate: boolean; reason?: string }> => {
+  getCache: async (file: File): Promise<{ data: GenericDataset | null; shouldUpdate: boolean; reason?: string }> => {
     try {
       const fileHash = await generateFileHash(file);
       const exactCacheKey = `${CACHE_KEY_PREFIX}${fileHash}`;
@@ -145,7 +145,7 @@ export const cacheService = {
   },
 
   // Update cache if new data has more records
-  updateCacheIfBetter: async (file: File, newData: HouseholdData[], cachedData?: HouseholdData[]): Promise<boolean> => {
+  updateCacheIfBetter: async (file: File, newData: GenericDataset, cachedData?: GenericDataset): Promise<boolean> => {
     try {
       if (!cachedData || newData.length > cachedData.length) {
         await cacheService.setCache(file, newData);

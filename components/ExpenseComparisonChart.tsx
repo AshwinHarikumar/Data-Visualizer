@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { PieChart, Pie, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 
 export interface ExpenseData {
   name: 'Energy' | 'Water' | 'Vehicle';
@@ -16,21 +16,37 @@ const COLORS: { [key in ExpenseData['name']]: string } = {
   Vehicle: '#f97316', // orange
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      return (
-        <div className="p-2 sm:p-3 bg-gray-900/90 backdrop-blur-sm text-white rounded-lg shadow-lg border border-gray-700">
-          <p className="font-bold text-xs sm:text-sm">{`${label}: ₹${payload[0].value.toLocaleString()}`}</p>
-        </div>
-      );
+        const data = payload[0].payload;
+        return (
+            <div className="p-1.5 sm:p-2 md:p-3 bg-gray-900/95 backdrop-blur-sm text-white rounded-md sm:rounded-lg shadow-lg border border-gray-700 max-w-[200px] sm:max-w-xs">
+                <p className="font-bold text-[10px] xs:text-xs sm:text-sm truncate">{data.name}</p>
+                <p className="text-[9px] xs:text-xs sm:text-sm">₹{data.cost.toLocaleString()}</p>
+                <p className="text-[9px] xs:text-xs sm:text-sm">{data.percentage.toFixed(1)}%</p>
+            </div>
+        );
     }
     return null;
 };
 
 const ExpenseComparisonChart: React.FC<ExpenseComparisonChartProps> = ({ data }) => {
     if (!data || data.length === 0) {
-        return <p className="text-center text-gray-400 h-48 sm:h-64 flex items-center justify-center text-sm sm:text-base px-4">No expense data available for comparison.</p>;
+        return (
+            <div className="flex items-center justify-center h-32 xs:h-36 sm:h-40 md:h-48 lg:h-56 w-full">
+                <p className="text-center text-gray-400 text-xs xs:text-sm sm:text-base px-2 sm:px-4">
+                    No expense data available for comparison.
+                </p>
+            </div>
+        );
     }
+
+    // Calculate percentages for pie chart
+    const total = data.reduce((sum, item) => sum + item.cost, 0);
+    const pieData = data.map(item => ({
+        ...item,
+        percentage: total > 0 ? (item.cost / total) * 100 : 0
+    }));
 
     const [screenSize, setScreenSize] = useState<'xs' | 'sm' | 'md' | 'lg'>('lg');
     
@@ -48,75 +64,124 @@ const ExpenseComparisonChart: React.FC<ExpenseComparisonChartProps> = ({ data })
         return () => window.removeEventListener('resize', updateScreenSize);
     }, []);
 
-    const getMargins = () => {
+    const getOuterRadius = () => {
         switch (screenSize) {
-            case 'xs': return { top: 5, right: 8, left: 8, bottom: 5 };
-            case 'sm': return { top: 5, right: 12, left: 8, bottom: 5 };
-            default: return { top: 5, right: 16, left: 8, bottom: 5 };
+            case 'xs': return 70;
+            case 'sm': return 85;
+            case 'md': return 100;
+            default: return 120;
         }
     };
 
-    const getTickFontSize = () => {
+    const getInnerRadius = () => {
         switch (screenSize) {
-            case 'xs': return 8;
-            case 'sm': return 9;
-            case 'md': return 11;
-            default: return 12;
+            case 'xs': return 0;
+            case 'sm': return 0;
+            case 'md': return 0;
+            default: return 0;
         }
     };
 
-    const getBarSize = () => {
+    const getLabelFontSize = () => {
         switch (screenSize) {
-            case 'xs': return 18;
-            case 'sm': return 22;
-            case 'md': return 28;
-            default: return 35;
+            case 'xs': return 9;
+            case 'sm': return 10;
+            case 'md': return 12;
+            default: return 14;
         }
     };
 
-    const getYAxisWidth = () => {
+    const getLegendConfig = () => {
         switch (screenSize) {
-            case 'xs': return 40;
-            case 'sm': return 45;
-            case 'md': return 60;
-            default: return 70;
+            case 'xs':
+                return {
+                    iconSize: 8,
+                    layout: 'horizontal' as const,
+                    verticalAlign: 'bottom' as const,
+                    align: 'center' as const,
+                    wrapperStyle: { 
+                        fontSize: '10px', 
+                        paddingTop: '8px',
+                        lineHeight: '1.3'
+                    }
+                };
+            case 'sm':
+                return {
+                    iconSize: 10,
+                    layout: 'horizontal' as const,
+                    verticalAlign: 'bottom' as const,
+                    align: 'center' as const,
+                    wrapperStyle: { 
+                        fontSize: '11px', 
+                        paddingTop: '10px',
+                        lineHeight: '1.3'
+                    }
+                };
+            default:
+                return {
+                    iconSize: 12,
+                    layout: 'horizontal' as const,
+                    verticalAlign: 'bottom' as const,
+                    align: 'center' as const,
+                    wrapperStyle: { 
+                        fontSize: '13px', 
+                        paddingTop: '12px',
+                        lineHeight: '1.4'
+                    }
+                };
         }
     };
 
     return (
-        <div className="w-full h-48 xs:h-52 sm:h-56 md:h-64">
+        <div className="w-full h-48 xs:h-52 sm:h-56 md:h-64 lg:h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data} layout="vertical" margin={getMargins()}>
-                    <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
-                    <XAxis 
-                        type="number" 
-                        stroke="#9CA3AF" 
-                        tick={{ 
-                            fill: '#D1D5DB', 
-                            fontSize: getTickFontSize() 
-                        }} 
-                        unit="₹" 
-                    />
-                    <YAxis 
-                        type="category" 
-                        dataKey="name" 
-                        stroke="#9CA3AF" 
-                        tick={{ 
-                            fill: '#D1D5DB', 
-                            fontSize: getTickFontSize() 
-                        }} 
-                        width={getYAxisWidth()}
-                    />
-                    <Tooltip 
-                        content={<CustomTooltip />} 
-                        cursor={{ fill: 'rgba(107, 114, 128, 0.1)' }} 
-                    />
-                    <Bar dataKey="cost" name="Monthly Cost" barSize={getBarSize()}>
-                        {data.map((entry) => (
+                <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                    <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy={screenSize === 'xs' ? '45%' : screenSize === 'sm' ? '47%' : '50%'}
+                        labelLine={false}
+                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                            // Hide labels on very small slices
+                            if (percent < 0.05) return null;
+                            const radius = innerRadius + (outerRadius - innerRadius) * 0.7;
+                            const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+                            const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+                            return (
+                                <text 
+                                    x={x} 
+                                    y={y} 
+                                    fill="white" 
+                                    textAnchor="middle" 
+                                    dominantBaseline="central" 
+                                    fontSize={getLabelFontSize()}
+                                    fontWeight="bold"
+                                    stroke="rgba(0,0,0,0.5)"
+                                    strokeWidth={1}
+                                >
+                                    {`${(percent * 100).toFixed(0)}%`}
+                                </text>
+                            );
+                        }}
+                        outerRadius={getOuterRadius()}
+                        innerRadius={getInnerRadius()}
+                        fill="#8884d8"
+                        dataKey="cost"
+                        paddingAngle={1}
+                    >
+                        {pieData.map((entry) => (
                             <Cell key={`cell-${entry.name}`} fill={COLORS[entry.name] || '#8884d8'} />
                         ))}
-                    </Bar>
-                </BarChart>
+                    </Pie>
+                    <Tooltip 
+                        content={<CustomTooltip />}
+                        offset={15}
+                    />
+                    <Legend
+                        iconType="circle"
+                        {...getLegendConfig()}
+                    />
+                </PieChart>
             </ResponsiveContainer>
         </div>
     );

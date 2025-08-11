@@ -167,7 +167,7 @@ const RowAnalysisView: React.FC<RowAnalysisViewProps> = ({ dataRow, allData }) =
             <div className="lg:col-span-2 xl:col-span-3 space-y-4 sm:space-y-6">
                  {comparisonData && (
                     <div className="bg-white/10 dark:bg-gray-800/60 backdrop-blur-md p-4 sm:p-6 rounded-xl shadow-lg border border-gray-200/20 dark:border-gray-700/50">
-                        <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Household Peer Comparison</h3>
+                        <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Household Peer Comparison Chart</h3>
                         <PeerComparisonChart
                             selectedData={comparisonData.selected}
                             averageData={comparisonData.average}
@@ -177,7 +177,7 @@ const RowAnalysisView: React.FC<RowAnalysisViewProps> = ({ dataRow, allData }) =
                  )}
                 
                 <div className="bg-white/10 dark:bg-gray-800/60 backdrop-blur-md p-4 sm:p-6 rounded-xl shadow-lg border border-gray-200/20 dark:border-gray-700/50">
-                    <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Monthly Expense Comparison</h3>
+                    <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Monthly Expense Distribution: Water, Energy & Transportation</h3>
                     <ExpenseComparisonChart data={expenseData} />
                 </div>
                 

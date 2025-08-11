@@ -43,13 +43,13 @@ const InitialView: React.FC<InitialViewProps> = ({
     };
 
     return (
-        <div className="text-center transition-opacity duration-500 ease-in-out opacity-100 w-full max-w-md">
-          <div className="p-4 sm:p-8 bg-gray-50 dark:bg-gray-700/50 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700/80">
+        <div className="text-center transition-opacity duration-500 ease-in-out opacity-100 w-full max-w-xs xs:max-w-sm sm:max-w-md px-2">
+          <div className="p-3 xs:p-4 sm:p-6 lg:p-8 bg-gray-50 dark:bg-gray-700/50 rounded-lg sm:rounded-xl shadow-lg border border-gray-200 dark:border-gray-700/80">
             <div className="flex justify-center">
-              <UploadIcon className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400" />
+              <UploadIcon className="h-8 w-8 xs:h-10 xs:w-10 sm:h-12 sm:w-12 lg:h-16 lg:w-16 text-gray-400" />
             </div>
-            <h2 className="mt-6 text-xl sm:text-2xl font-semibold text-gray-800 dark:text-white">Upload Your Document</h2>
-            <p className="mt-2 text-gray-600 dark:text-gray-300">
+            <h2 className="mt-3 xs:mt-4 sm:mt-6 text-lg xs:text-xl sm:text-2xl font-semibold text-gray-800 dark:text-white">Upload Your Document</h2>
+            <p className="mt-1 xs:mt-2 text-xs xs:text-sm sm:text-base text-gray-600 dark:text-gray-300 px-2">
               Select a PDF or Excel file with tabular data for extraction and visualization.
             </p>
             
@@ -63,17 +63,17 @@ const InitialView: React.FC<InitialViewProps> = ({
               disabled={isLoading}
             />
 
-            <div className="mt-8 w-full">
+            <div className="mt-4 xs:mt-6 sm:mt-8 w-full">
                 <button
                   onClick={handleBrowseClick}
                   disabled={isLoading}
-                  className="w-full inline-flex items-center justify-center px-4 sm:px-6 py-3 border border-gray-300 dark:border-gray-600 text-base font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-full inline-flex items-center justify-center px-3 xs:px-4 sm:px-6 py-2 xs:py-2.5 sm:py-3 border border-gray-300 dark:border-gray-600 text-xs xs:text-sm sm:text-base font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Browse File
                 </button>
 
                 {selectedFile && 
-                    <p className="mt-3 text-sm text-gray-500 dark:text-gray-400 truncate max-w-full px-2" title={selectedFile.name}>
+                    <p className="mt-2 xs:mt-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate max-w-full px-1" title={selectedFile.name}>
                         Selected: <strong>{selectedFile.name}</strong>
                     </p>
                 }
@@ -81,13 +81,20 @@ const InitialView: React.FC<InitialViewProps> = ({
                 <button
                     onClick={handleProcessUpload}
                     disabled={isLoading || !selectedFile}
-                    className="mt-4 w-full inline-flex items-center justify-center px-4 sm:px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="mt-3 xs:mt-4 w-full inline-flex items-center justify-center px-3 xs:px-4 sm:px-6 py-2 xs:py-2.5 sm:py-3 border border-transparent text-xs xs:text-sm sm:text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                    {isLoading ? <><LoadingSpinner/> {getLoadingText()}</> : 'Process File & Visualize'}
+                    {isLoading ? (
+                        <>
+                            <LoadingSpinner/> 
+                            <span className="ml-2">{getLoadingText()}</span>
+                        </>
+                    ) : (
+                        <span className="text-center">Process File & Visualize</span>
+                    )}
                 </button>
             </div>
           </div>
-          {error && <p className="mt-6 text-red-500 font-medium">{error}</p>}
+          {error && <p className="mt-3 xs:mt-4 sm:mt-6 text-red-500 font-medium text-xs xs:text-sm sm:text-base px-2">{error}</p>}
         </div>
       );
 };
